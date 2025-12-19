@@ -7,16 +7,17 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import { getDailyVerses, getSurahInfo } from "@/lib/quranApi";
 
-// ... [Keep getUserProgress and getVersesForDay as they were] ...
-
+// 1. Get Progress
 export async function getUserProgress() {
   const { userId } = await auth();
   if (!userId) return null;
+
   try {
     const progress = await db
       .select()
       .from(userProgress)
       .where(eq(userProgress.userId, userId));
+
     if (progress.length === 0) {
       const newEntry = {
         userId: userId,
@@ -36,7 +37,7 @@ export async function getUserProgress() {
   }
 }
 
-// ... [Keep updateProgress as is from the previous robust version] ...
+// 2. Update Progress
 export async function updateProgress(
   mode: "next_verse" | "complete_day" | "set_surah",
   payload?: any
@@ -63,20 +64,24 @@ export async function updateProgress(
       return { success: true };
     }
 
-    // Calculation Logic
-    let nextAyah = currentProgress.currentAyah;
-    let nextSurah = currentProgress.currentSurahId;
-    let nextDay = currentProgress.dayNumber;
+    // Calculation Logic with Fallbacks for TypeScript
+    let nextAyah = currentProgress.currentAyah || 1;
+    let nextSurah = currentProgress.currentSurahId || 1;
+    let nextDay = currentProgress.dayNumber || 1;
+    let completedAyahsToday = currentProgress.completedAyahsToday || 0;
 
     // Check limits
-    const surahInfo = await getSurahInfo(nextSurah);
+    // 👇 FIXED: Added (nextSurah || 1) to satisfy TypeScript
+    const surahInfo = await getSurahInfo(nextSurah || 1);
     const totalVerses = surahInfo?.verses_count || 300;
 
     if (mode === "complete_day") {
       nextDay++;
       nextAyah += 2;
+      completedAyahsToday = 0;
     } else {
       nextAyah += 2;
+      completedAyahsToday += 2;
     }
 
     // If passed end of Surah, go to next
@@ -92,7 +97,7 @@ export async function updateProgress(
         currentSurahId: nextSurah,
         currentAyah: nextAyah,
         dayNumber: nextDay,
-        completedAyahsToday: 0,
+        completedAyahsToday: completedAyahsToday,
         lastUpdated: new Date(),
       })
       .where(eq(userProgress.userId, userId));
@@ -105,13 +110,12 @@ export async function updateProgress(
   }
 }
 
-// 👇 NEW: RESET FUNCTION
+// 3. Reset Function
 export async function resetUserProgress() {
   const { userId } = await auth();
   if (!userId) return { success: false };
 
   try {
-    // Delete the entry completely
     await db.delete(userProgress).where(eq(userProgress.userId, userId));
     revalidatePath("/");
     return { success: true };
@@ -125,5 +129,10 @@ export async function resetUserProgress() {
 export async function getVersesForDay(day: number) {
   const progress = await getUserProgress();
   if (!progress) return [];
-  return await getDailyVerses(progress.currentSurahId, progress.currentAyah, 2);
+  // 👇 FIXED: Added fallbacks here too
+  return await getDailyVerses(
+    progress.currentSurahId || 1,
+    progress.currentAyah || 1,
+    2
+  );
 }
