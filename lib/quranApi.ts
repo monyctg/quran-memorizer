@@ -1,4 +1,5 @@
 // lib/quranApi.ts
+
 const BASE_URL = "https://api.quran.com/api/v4";
 
 export interface Word {
@@ -18,7 +19,6 @@ export interface Verse {
   audio: { url: string };
 }
 
-// Map IDs to specific reciter audio paths (from EveryAyah or similar)
 export const RECITERS = {
   alafasy: "Alafasy_128kbps",
   sudais: "Abdurrahmaan_As-Sudais_192kbps",
@@ -26,17 +26,32 @@ export const RECITERS = {
   husary: "Husary_128kbps",
 };
 
+// 👇 NEW: Helper to get Surah Details (Name, Total Verses)
+export async function getSurahInfo(surahId: number) {
+  try {
+    const res = await fetch(
+      `https://api.quran.com/api/v4/chapters/${surahId}?language=en`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.chapter; // { name_simple, verses_count, id, ... }
+  } catch (error) {
+    console.error("Failed to fetch surah info", error);
+    return null;
+  }
+}
+
 export async function getDailyVerses(
   surahId: number,
   startVerse: number,
   count: number = 2
 ) {
   const params = new URLSearchParams({
-    language: "bn", // Meta language
+    language: "bn", // Bengali
     words: "true",
     word_fields: "text_uthmani,translation,audio_url",
-    word_translation_language: "bn", // <--- THIS GETS BANGLA WORDS
-    translations: "161", // 161 = Muhiuddin Khan. Try 213 for Taisirul if available.
+    word_translation_language: "bn",
+    translations: "161",
     audio: "1",
     per_page: count.toString(),
     page: "1",
@@ -52,7 +67,13 @@ export async function getDailyVerses(
       const res = await fetch(
         `${BASE_URL}/verses/by_key/${key}?${params.toString()}`
       );
-      if (!res.ok) throw new Error("Failed to fetch");
+
+      // 👇 FIX: If verse doesn't exist (404), stop loop gracefully
+      if (!res.ok) {
+        console.warn(`Verse ${key} not found (End of Surah?)`);
+        break;
+      }
+
       const data = await res.json();
       versesData.push(data.verse);
     } catch (e) {
