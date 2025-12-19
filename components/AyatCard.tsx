@@ -1,4 +1,28 @@
-export default function AyatCard({ verse }) {
+// 1. Define types based on your data structure
+interface Word {
+  id: number;
+  text_uthmani: string;
+  translation: {
+    text: string;
+  };
+}
+
+interface Translation {
+  text: string;
+}
+
+interface Verse {
+  verse_key: string;
+  words: Word[];
+  translations: Translation[];
+}
+
+interface AyatCardProps {
+  verse: Verse;
+}
+
+// 2. Apply the interface to the component props
+export default function AyatCard({ verse }: AyatCardProps) {
   return (
     <div className="border-b p-6 hover:bg-slate-50">
       {/* Action Bar: Play Audio, Save, Bookmark */}
@@ -15,7 +39,7 @@ export default function AyatCard({ verse }) {
               {word.text_uthmani}
             </span>
             {/* Tooltip for Word by Word */}
-            <span className="absolute hidden group-hover:block -bottom-8 left-1/2 -translate-x-1/2 text-xs bg-gray-800 text-white p-1 rounded">
+            <span className="absolute hidden group-hover:block -bottom-8 left-1/2 -translate-x-1/2 text-xs bg-gray-800 text-white p-1 rounded whitespace-nowrap z-10">
               {word.translation.text}
             </span>
           </div>
@@ -24,8 +48,13 @@ export default function AyatCard({ verse }) {
 
       {/* Translation */}
       <p className="text-lg text-gray-700">
-        {verse.translations[0].text}{" "}
-        {/* Ensure you fetch with translation resource */}
+        {verse.translations && verse.translations[0] ? (
+          verse.translations[0].text
+        ) : (
+          <span className="text-sm italic text-red-400">
+            Translation not available
+          </span>
+        )}
       </p>
     </div>
   );
