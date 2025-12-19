@@ -27,16 +27,19 @@ export default function ExamPage() {
         const progress = await getUserProgress();
         if (!progress) return;
 
-        let endAyah = progress.currentAyah;
+        // 👇 FIXED: Added "|| 1" to ensure endAyah is never null
+        let endAyah = progress.currentAyah || 1;
         let startAyah = Math.max(1, endAyah - 4);
 
-        if (progress.currentAyah === 1) {
+        // 👇 FIXED: Added "|| 1" here too
+        if ((progress.currentAyah || 1) === 1) {
           startAyah = 1;
           endAyah = 2;
         }
 
+        // 👇 FIXED: Added "|| 1" to surahId
         const verses = await getDailyVerses(
-          progress.currentSurahId,
+          progress.currentSurahId || 1,
           startAyah,
           endAyah - startAyah + 1
         );
